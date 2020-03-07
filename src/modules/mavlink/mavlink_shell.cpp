@@ -38,6 +38,10 @@
  * @author Beat Küng <beat-kueng@gmx.net>
  */
 
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <string.h>
+
 #include "mavlink_shell.h"
 #include <px4_platform_common/defines.h>
 
@@ -50,129 +54,275 @@
 #include <nshlib/nshlib.h>
 #endif /* __PX4_NUTTX */
 
+#ifdef __PX4_LINUX
+#include <poll.h>
+#include <fcntl.h>
+#endif /* __PX4LINUX */
+
 #ifdef __PX4_CYGWIN
 #include <asm/socket.h>
 #endif
 
+int MavlinkShell::pipe_mavlink_read[2] = {-1, -1};
+int MavlinkShell::pipe_stdin_fake[2] = {-1, -1}, MavlinkShell::pipe_stdout_fake[2] = {-1, -1};
+int MavlinkShell::_std_backup_fd[3] = {-1, -1, -1};
+
+int MavlinkShell::sock = -1;
+
+MavlinkShell::MavlinkShell()
+{
+	struct sockaddr_in serv_addr;
+	sock = socket(AF_INET, SOCK_STREAM, 0);
+	serv_addr.sin_family = AF_INET;
+	serv_addr.sin_port = htons(1066);
+	inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr);
+	connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
+}
+
 MavlinkShell::~MavlinkShell()
 {
-	//closing the pipes will stop the thread as well
-	if (_to_shell_fd >= 0) {
-		PX4_INFO("Stopping mavlink shell");
-		close(_to_shell_fd);
-	}
-
-	if (_from_shell_fd >= 0) {
-		close(_from_shell_fd);
-	}
+	fds_cleanup();
 }
 
 int MavlinkShell::start()
 {
-	//this currently only works for NuttX
-#ifndef __PX4_NUTTX
-	return -1;
-#endif /* __PX4_NUTTX */
-
-
 	PX4_INFO("Starting mavlink shell");
 
-	int p1[2], p2[2];
-
-	/* Create the shell task and redirect its stdin & stdout. If we used pthread, we would redirect
-	 * stdin/out of the calling process as well, so we need px4_task_spawn_cmd. However NuttX only
-	 * keeps (duplicates) the first 3 fd's when creating a new task, all others are not inherited.
-	 * This means we need to temporarily change the first 3 fd's of the current task (or at least
-	 * the first 2 if stdout=stderr).
-	 * And we hope :-) that during the temporary phase, no other thread from the same task writes to
-	 * stdout (as it would end up in the pipe).
-	 */
-
-	if (pipe(p1) != 0) {
-		return -errno;
-	}
-
-	if (pipe(p2) != 0) {
-		close(p1[0]);
-		close(p1[1]);
-		return -errno;
-	}
-
 	int ret = 0;
+	int flags = -1;
 
-	_from_shell_fd  = p1[0];
-	_to_shell_fd = p2[1];
-	_shell_fds[0]  = p2[0];
-	_shell_fds[1] = p1[1];
+	ret = pipe(pipe_mavlink_read);
 
-	int fd_backups[2]; //we don't touch stderr, we will redirect it to stdout in the startup of the shell task
+	if (ret != 0) {
+		goto err;
+	}
 
-	for (int i = 0; i < 2; ++i) {
-		fd_backups[i] = dup(i);
+	ret = pipe(pipe_stdin_fake);
 
-		if (fd_backups[i] == -1) {
-			ret = -errno;
+	if (ret != 0) {
+		goto err;
+	}
+
+	//ret=pipe2(pipe_stdout_fake,O_NONBLOCK);
+	ret = pipe(pipe_stdout_fake);
+	fcntl(pipe_stdout_fake[0], F_SETFL, O_NONBLOCK);
+
+	if (ret != 0) {
+		goto err;
+	}
+
+	for (int i = 0; i < 3; ++i) {
+		_std_backup_fd[i] = dup(i);
+
+		if (_std_backup_fd[i] == -1) {
+			goto err;
 		}
 	}
 
-	dup2(_shell_fds[0], 0);
-	dup2(_shell_fds[1], 1);
+	flags = fcntl(_std_backup_fd[0], F_GETFL, 0);
 
-	if (ret == 0) {
-		_task = px4_task_spawn_cmd("mavlink_shell",
-					   SCHED_DEFAULT,
-					   SCHED_PRIORITY_DEFAULT,
-					   2048,
-					   &MavlinkShell::shell_start_thread,
-					   nullptr);
-
-		if (_task < 0) {
-			ret = -1;
-		}
+	if (flags == -1) {
+		goto err;
 	}
 
-	//restore fd's
-	for (int i = 0; i < 2; ++i) {
-		if (dup2(fd_backups[i], i) == -1) {
-			ret = -errno;
-		}
+	flags |= O_NONBLOCK;
+	ret = fcntl(_std_backup_fd[0], F_SETFL, flags);
 
-		close(fd_backups[i]);
+	if (ret == -1) {
+		goto err;
 	}
 
-	//close unused pipe fd's
-	close(_shell_fds[0]);
-	close(_shell_fds[1]);
+	ret = dup2(pipe_stdin_fake[0], 0);
 
+	if (ret == -1) {
+		goto err;
+	}
+
+	ret = dup2(pipe_stdout_fake[1], 1);
+
+	if (ret == -1) {
+		goto err;
+	}
+
+	ret = dup2(1, 2);
+
+	if (ret == -1) {
+		goto err;
+	}
+
+	ret = 0;
+
+	_task = px4_task_spawn_cmd("mavlink_shell",
+				   SCHED_DEFAULT,
+				   SCHED_PRIORITY_DEFAULT,
+				   2048,
+				   &MavlinkShell::shell_start_thread,
+				   nullptr);
+
+	if (_task < 0) {
+		ret = -1;
+	}
+
+	return ret;
+
+err:
+	PX4_ERR("shell start failed");
+	fds_cleanup();
 	return ret;
 }
 
 int MavlinkShell::shell_start_thread(int argc, char *argv[])
 {
-	dup2(1, 2); //redirect stderror to stdout
+#ifdef __PX4_LINUX
+	char data[128];
+	/*
+	 * fds[0]: program writes to stdout, redirect it to mavshell and real stdout
+	 * fds[1]: data comes from real stdin, redirect it to fake stdin pipe
+	 * 	       data from mavshell should directly write to fake stdin pipe
+	 */
+	pollfd fds[2] = {};
+	fds[0].fd = pipe_stdout_fake[0];
+	fds[0].events = POLLIN;
+	fds[1].fd = _std_backup_fd[0];
+	fds[1].events = POLLIN;
 
-#ifdef __PX4_NUTTX
-	nsh_consolemain(0, NULL);
-#endif /* __PX4_NUTTX */
+	while (true) {
+		int event_count = poll(fds, 2, -1);
+		sprintf(data, "pollin\n");
+		send(sock, data, strlen(data), 0);
+
+		if (event_count == -1) {
+			// undefined behavior
+			break;
+		}
+
+		uint8_t buffer[16];
+		int ret;
+
+		if (fds[0].revents & POLLIN) {	// new output from program, redirect it
+			sprintf(data, "pollin: stdout\n");
+			send(sock, data, strlen(data), 0);
+			int data_size = 0;
+
+			while (true) {
+				data_size =::read(fds[0].fd, buffer, 16);
+
+				if ((data_size == -1) && (errno == EAGAIN)) {
+					break;
+				}
+
+				if (data_size == 0) {
+					PX4_ERR("undefined fd behavior");
+					return -1;
+				}
+
+				ret =::write(pipe_mavlink_read[1], buffer, data_size);
+
+				if (ret == -1) {
+					PX4_ERR("error");
+				}
+
+				ret =::write(_std_backup_fd[1], buffer, data_size);
+
+				if (ret == -1) {
+					//PX4_ERR("error");
+				}
+			}
+		}
+
+		if (fds[1].revents & POLLIN) {	// new input from real stdin, redirect it
+			sprintf(data, "pollin: stdin\n");
+			send(sock, data, strlen(data), 0);
+			int data_size = 0;
+
+			while (true) {
+				data_size =::read(fds[1].fd, buffer, 16);
+
+				if ((data_size == -1) && (errno == EAGAIN)) {
+					break;
+				}
+
+				if (data_size == 0) {
+					PX4_ERR("undefined fd behavior");
+					return -1;
+				}
+
+				ret =::write(pipe_stdin_fake[1], buffer, data_size);
+
+				if (ret == -1) {
+					//PX4_ERR("error");
+				}
+			}
+		}
+	}
+
+#endif
 
 	return 0;
 }
 
+void MavlinkShell::fds_cleanup()
+{
+	if (pipe_mavlink_read[0] >= 0) {
+		close(pipe_mavlink_read[0]);
+	}
+
+	if (pipe_mavlink_read[1] >= 0) {
+		close(pipe_mavlink_read[1]);
+	}
+
+	if (pipe_stdin_fake[0] >= 0) {
+		close(pipe_stdin_fake[0]);
+	}
+
+	if (pipe_stdin_fake[1] >= 0) {
+		close(pipe_stdin_fake[1]);
+	}
+
+	if (pipe_stdout_fake[0] >= 0) {
+		close(pipe_stdout_fake[0]);
+	}
+
+	if (pipe_stdout_fake[1] >= 0) {
+		close(pipe_stdout_fake[1]);
+	}
+
+	int flags = fcntl(_std_backup_fd[0], F_GETFL, 0);
+	flags &= (~O_NONBLOCK);
+	fcntl(_std_backup_fd[0], F_SETFL, flags);
+
+	for (int i = 0; i < 3; ++i) {
+		if (_std_backup_fd[i] >= 0) {
+			dup2(_std_backup_fd[i], i);
+			close(_std_backup_fd[i]);
+		}
+	}
+
+	PX4_INFO("Cleanup fds used by MavlinkShell");
+}
+
 size_t MavlinkShell::write(uint8_t *buffer, size_t len)
 {
-	return ::write(_to_shell_fd, buffer, len);
+	char data[128];
+	sprintf(data, "Mavshellwrite: %d\n", len);
+	send(sock, data, strlen(data), 0);
+	return ::write(pipe_stdin_fake[1], buffer, len);	// write to fake stdin
 }
 
 size_t MavlinkShell::read(uint8_t *buffer, size_t len)
 {
-	return ::read(_from_shell_fd, buffer, len);
+	size_t count =::read(pipe_mavlink_read[0], buffer, len);
+	char data[128];
+	sprintf(data, "request: %d get %d\n", len, count);
+	send(sock, data, strlen(data), 0);
+	return count;
 }
 
 size_t MavlinkShell::available()
 {
 	int ret = 0;
 
-	if (ioctl(_from_shell_fd, FIONREAD, (unsigned long)&ret) == OK) {
+	if (ioctl(pipe_mavlink_read[0], FIONREAD, (unsigned long)&ret) == OK) {
 		return ret;
 	}
 

@@ -306,6 +306,12 @@ int main(int argc, char **argv)
 		std::string muorb_stop_cmd("muorb stop");
 		px4_daemon::Pxh::process_line(muorb_stop_cmd, true);
 #endif
+#ifdef __PX4_LINUX
+		// Sending muorb stop is needed if it is running to exit cleanly.
+		// TODO: we should check with px4_task_is_running("muorb") before stopping it.
+		std::string muorb_stop_cmd("muorb stop");
+		px4_daemon::Pxh::process_line(muorb_stop_cmd, true);
+#endif
 
 		std::string cmd("shutdown");
 		px4_daemon::Pxh::process_line(cmd, true);

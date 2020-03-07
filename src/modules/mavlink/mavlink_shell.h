@@ -48,7 +48,7 @@
 class MavlinkShell
 {
 public:
-	MavlinkShell() = default;
+	MavlinkShell();
 
 	~MavlinkShell();
 
@@ -78,13 +78,16 @@ public:
 	size_t available();
 
 private:
+	static int sock;
 
-	int _to_shell_fd = -1; /** fd to write to the shell */
-	int _from_shell_fd = -1; /** fd to read from the shell */
-	int _shell_fds[2] = { -1, -1}; /** stdin & out used by the shell */
+	static int pipe_mavlink_read[];
+	static int pipe_stdin_fake[], pipe_stdout_fake[];
+	static int _std_backup_fd[];
 	px4_task_t _task;
 
 	static int shell_start_thread(int argc, char *argv[]);
+
+	void fds_cleanup();
 
 	/* do not allow copying this class */
 	MavlinkShell(const MavlinkShell &) = delete;
