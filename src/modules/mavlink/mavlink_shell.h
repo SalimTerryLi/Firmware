@@ -83,11 +83,13 @@ private:
 	static int pipe_mavlink_read[];
 	static int pipe_stdin_fake[], pipe_stdout_fake[];
 	static int _std_backup_fd[];
+
+	static int pipe_signal_to_stop[];
 	px4_task_t _task;
 
 	static int shell_start_thread(int argc, char *argv[]);
 
-	void fds_cleanup();
+	static void fds_cleanup();
 
 	/* do not allow copying this class */
 	MavlinkShell(const MavlinkShell &) = delete;

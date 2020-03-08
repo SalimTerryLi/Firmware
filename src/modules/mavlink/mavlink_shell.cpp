@@ -57,6 +57,7 @@
 #ifdef __PX4_LINUX
 #include <poll.h>
 #include <fcntl.h>
+#include <stdlib.h>
 #endif /* __PX4LINUX */
 
 #ifdef __PX4_CYGWIN
@@ -66,6 +67,8 @@
 int MavlinkShell::pipe_mavlink_read[2] = {-1, -1};
 int MavlinkShell::pipe_stdin_fake[2] = {-1, -1}, MavlinkShell::pipe_stdout_fake[2] = {-1, -1};
 int MavlinkShell::_std_backup_fd[3] = {-1, -1, -1};
+
+int MavlinkShell::pipe_signal_to_stop[2] = {-1, -1};
 
 int MavlinkShell::sock = -1;
 
@@ -81,7 +84,10 @@ MavlinkShell::MavlinkShell()
 
 MavlinkShell::~MavlinkShell()
 {
-	fds_cleanup();
+	// not being called at all
+	char data[128];
+	sprintf(data, "~MavlinkShell()\n");
+	send(sock, data, strlen(data), 0);
 }
 
 int MavlinkShell::start()
@@ -150,7 +156,13 @@ int MavlinkShell::start()
 		goto err;
 	}
 
-	ret = 0;
+	ret = pipe(pipe_signal_to_stop);
+
+	if (ret != 0) {
+		goto err;
+	}
+
+	ret = atexit(&MavlinkShell::fds_cleanup);
 
 	_task = px4_task_spawn_cmd("mavlink_shell",
 				   SCHED_DEFAULT,
@@ -180,19 +192,27 @@ int MavlinkShell::shell_start_thread(int argc, char *argv[])
 	 * fds[1]: data comes from real stdin, redirect it to fake stdin pipe
 	 * 	       data from mavshell should directly write to fake stdin pipe
 	 */
-	pollfd fds[2] = {};
+	pollfd fds[3] = {};
 	fds[0].fd = pipe_stdout_fake[0];
 	fds[0].events = POLLIN;
 	fds[1].fd = _std_backup_fd[0];
 	fds[1].events = POLLIN;
+	fds[2].fd = pipe_signal_to_stop[0];
+	fds[2].events = POLLIN;
 
 	while (true) {
-		int event_count = poll(fds, 2, -1);
-		sprintf(data, "pollin\n");
+		int event_count = poll(fds, 3, -1);
+		sprintf(data, "pollin loop %d %d\n", event_count, errno);
 		send(sock, data, strlen(data), 0);
 
 		if (event_count == -1) {
 			// undefined behavior
+			break;
+		}
+
+		if (fds[2].revents & POLLIN) {
+			sprintf(data, "stop sig\n");
+			send(sock, data, strlen(data), 0);
 			break;
 		}
 
@@ -256,6 +276,12 @@ int MavlinkShell::shell_start_thread(int argc, char *argv[])
 		}
 	}
 
+	sprintf(data, "poll exit\n");
+	send(sock, data, strlen(data), 0);
+
+	close(pipe_signal_to_stop[0]);
+	close(pipe_signal_to_stop[1]);
+
 #endif
 
 	return 0;
@@ -263,28 +289,49 @@ int MavlinkShell::shell_start_thread(int argc, char *argv[])
 
 void MavlinkShell::fds_cleanup()
 {
+	char tempbuffer = '\0';
+	int ret =::write(pipe_signal_to_stop[1], &tempbuffer, 1);	// stop polling.
+
+	if (ret) {}
+
+	char data[128];
+	sprintf(data, "cleanup fds\n");
+	send(sock, data, strlen(data), 0);
+
 	if (pipe_mavlink_read[0] >= 0) {
 		close(pipe_mavlink_read[0]);
+		sprintf(data, "cleanup fds 0\n");
+		send(sock, data, strlen(data), 0);
 	}
 
 	if (pipe_mavlink_read[1] >= 0) {
 		close(pipe_mavlink_read[1]);
+		sprintf(data, "cleanup fds 1\n");
+		send(sock, data, strlen(data), 0);
 	}
 
 	if (pipe_stdin_fake[0] >= 0) {
 		close(pipe_stdin_fake[0]);
+		sprintf(data, "cleanup fds 2\n");
+		send(sock, data, strlen(data), 0);
 	}
 
 	if (pipe_stdin_fake[1] >= 0) {
 		close(pipe_stdin_fake[1]);
+		sprintf(data, "cleanup fds 3\n");
+		send(sock, data, strlen(data), 0);
 	}
 
 	if (pipe_stdout_fake[0] >= 0) {
 		close(pipe_stdout_fake[0]);
+		sprintf(data, "cleanup fds 4\n");
+		send(sock, data, strlen(data), 0);
 	}
 
 	if (pipe_stdout_fake[1] >= 0) {
 		close(pipe_stdout_fake[1]);
+		sprintf(data, "cleanup fds 5\n");
+		send(sock, data, strlen(data), 0);
 	}
 
 	int flags = fcntl(_std_backup_fd[0], F_GETFL, 0);
@@ -295,6 +342,8 @@ void MavlinkShell::fds_cleanup()
 		if (_std_backup_fd[i] >= 0) {
 			dup2(_std_backup_fd[i], i);
 			close(_std_backup_fd[i]);
+			sprintf(data, "cleanup fds 6 %d\n", i);
+			send(sock, data, strlen(data), 0);
 		}
 	}
 
