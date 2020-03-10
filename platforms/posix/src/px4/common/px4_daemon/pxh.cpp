@@ -44,14 +44,19 @@
 #include <sstream>
 #include <vector>
 #include <stdio.h>
+#include <fcntl.h>
+#include <poll.h>
 
 #include <px4_platform_common/log.h>
 #include "pxh.h"
+#include <px4_daemon/px4_console.h>
 
 namespace px4_daemon
 {
 
 Pxh *Pxh::_instance = nullptr;
+
+char stdin_buffer[32];
 
 apps_map_type Pxh::_apps = {};
 
@@ -147,7 +152,37 @@ void Pxh::run_pxh()
 
 	while (!_should_exit) {
 
-		int c = getchar();
+		int c;
+		pollfd pollfds[2];
+		pollfds[0].fd = 0;
+		pollfds[0].events = POLLIN;
+		pollfds[1].fd = get_console_input_fd(0);
+		pollfds[1].events = POLLIN;
+		int ret = poll(pollfds, 2, -1); printf("polltest*******\n");
+
+		if (ret <= 0) {
+			if (errno == EINTR) {
+				break;
+			}
+
+			PX4_ERR("pollin error");
+		}
+
+		if (pollfds[0].revents == POLLIN) {
+			int size = read(pollfds[0].fd, &c, 1);
+
+			if (size != 1) {
+				PX4_ERR("console input failed");
+			}
+
+		} else if (pollfds[1].revents == POLLIN) {
+			int size = read(pollfds[1].fd, &c, 1);
+
+			if (size != 1) {
+				PX4_ERR("console input failed");
+			}
+		}
+
 		std::string add_string; // string to add at current cursor position
 		bool update_prompt = true;
 
@@ -243,6 +278,8 @@ void Pxh::run_pxh()
 			}
 		}
 
+		fflush(stdout);
+
 	}
 }
 
@@ -267,21 +304,23 @@ void Pxh::_setup_term()
 	term.c_lflag &= ~ICANON;
 	term.c_lflag &= ~ECHO;
 	tcsetattr(0, TCSANOW, &term);
-	setbuf(stdin, nullptr);
+	setvbuf(stdin, stdin_buffer, _IOFBF, sizeof(stdin_buffer));
+	fcntl(0, F_SETFL, fcntl(0, F_GETFL) | O_NONBLOCK);
 }
 
 void Pxh::_restore_term()
 {
 	if (_instance) {
+		fcntl(0, F_SETFL, fcntl(0, F_GETFL) & ~O_NONBLOCK);
 		tcsetattr(0, TCSANOW, &_instance->_orig_term);
 	}
 }
 
 void Pxh::_print_prompt()
 {
-	//fflush(stdout);
+	fflush(stdout);
 	PX4_INFO_RAW("pxh> ");
-	//fflush(stdout);
+	fflush(stdout);
 }
 
 void Pxh::_clear_line()

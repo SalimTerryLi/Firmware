@@ -74,6 +74,7 @@
 #include "px4_daemon/client.h"
 #include "px4_daemon/server.h"
 #include "px4_daemon/pxh.h"
+#include "px4_daemon/console.h"
 
 #define MODULE_NAME "px4"
 
@@ -119,6 +120,12 @@ int SITL_MAIN(int argc, char **argv)
 int main(int argc, char **argv)
 #endif
 {
+	if (px4_console::init() != 0) {
+		return -1;	// should not fail
+	}
+
+	atexit(px4_console::stop);
+
 	bool is_client = false;
 	bool pxh_off = false;
 
