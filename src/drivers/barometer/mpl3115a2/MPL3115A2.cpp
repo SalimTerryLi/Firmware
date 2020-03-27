@@ -55,6 +55,7 @@
 #define MPL3115A2_CTRL_TRIGGER          (CTRL_REG1_OST | CTRL_REG1_OS(MPL3115A2_OSR))
 
 MPL3115A2::MPL3115A2(I2CSPIBusOption bus_option, const int bus, int bus_frequency) :
+	ScheduledWorkItem(MODULE_NAME, px4::device_bus_to_wq(interface->get_device_id())),
 	I2C("MPL3115A2", nullptr, bus, MPL3115A2_ADDRESS, bus_frequency),
 	I2CSPIDriver(MODULE_NAME, px4::device_bus_to_wq(get_device_id()), bus_option, bus),
 	_px4_barometer(get_device_id()),

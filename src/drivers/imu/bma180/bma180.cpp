@@ -220,6 +220,7 @@ private:
 
 BMA180::BMA180(I2CSPIBusOption bus_option, int bus, int32_t device, enum Rotation rotation, int bus_frequency,
 	       spi_mode_e spi_mode) :
+	ScheduledWorkItem(MODULE_NAME, px4::device_bus_to_wq(get_device_id())),
 	SPI("BMA180", ACCEL_DEVICE_PATH, bus, device, spi_mode, bus_frequency),
 	I2CSPIDriver(MODULE_NAME, px4::device_bus_to_wq(get_device_id()), bus_option, bus),
 	_call_interval(0),

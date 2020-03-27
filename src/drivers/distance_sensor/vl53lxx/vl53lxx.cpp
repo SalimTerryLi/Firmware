@@ -164,6 +164,7 @@ private:
 
 
 VL53LXX::VL53LXX(I2CSPIBusOption bus_option, const int bus, const uint8_t rotation, int bus_frequency, int address) :
+	ScheduledWorkItem(MODULE_NAME, px4::device_bus_to_wq(get_device_id())),
 	I2C("VL53LXX", VL53LXX_DEVICE_PATH, bus, address, bus_frequency),
 	I2CSPIDriver(MODULE_NAME, px4::device_bus_to_wq(get_device_id()), bus_option, bus),
 	_rotation(rotation)

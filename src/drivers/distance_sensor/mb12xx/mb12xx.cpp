@@ -179,6 +179,7 @@ private:
 };
 
 MB12XX::MB12XX(I2CSPIBusOption bus_option, const int bus, int bus_frequency, int address) :
+	ScheduledWorkItem(MODULE_NAME, px4::device_bus_to_wq(get_device_id())),
 	I2C("MB12xx", MB12XX_DEVICE_PATH, bus, address, bus_frequency),
 	ModuleParams(nullptr),
 	I2CSPIDriver(MODULE_NAME, px4::device_bus_to_wq(get_device_id()), bus_option, bus, address)

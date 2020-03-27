@@ -41,6 +41,7 @@ constexpr uint8_t MPU6000::_checked_registers[MPU6000_NUM_CHECKED_REGISTERS];
 
 MPU6000::MPU6000(device::Device *interface, enum Rotation rotation, int device_type, I2CSPIBusOption bus_option,
 		 int bus) :
+	ScheduledWorkItem(MODULE_NAME, px4::device_bus_to_wq(interface->get_device_id())),
 	I2CSPIDriver(MODULE_NAME, px4::device_bus_to_wq(interface->get_device_id()), bus_option, bus, 0, device_type),
 	_interface(interface),
 	_device_type(device_type),

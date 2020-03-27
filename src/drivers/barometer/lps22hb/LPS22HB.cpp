@@ -43,6 +43,7 @@
 #define LPS22HB_CONVERSION_INTERVAL	(1000000 / 25)	/* microseconds */
 
 LPS22HB::LPS22HB(I2CSPIBusOption bus_option, int bus, device::Device *interface) :
+	ScheduledWorkItem(MODULE_NAME, px4::device_bus_to_wq(interface->get_device_id())),
 	CDev(nullptr),
 	I2CSPIDriver(MODULE_NAME, px4::device_bus_to_wq(interface->get_device_id()), bus_option, bus),
 	_interface(interface),

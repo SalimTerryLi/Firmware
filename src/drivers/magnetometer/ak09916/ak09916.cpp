@@ -51,6 +51,7 @@ extern "C" __EXPORT int ak09916_main(int argc, char *argv[]);
 
 
 AK09916::AK09916(I2CSPIBusOption bus_option, const int bus, int bus_frequency, enum Rotation rotation) :
+	ScheduledWorkItem(MODULE_NAME, px4::device_bus_to_wq(get_device_id())),
 	I2C("AK09916", nullptr, bus, AK09916_I2C_ADDR, bus_frequency),
 	I2CSPIDriver(MODULE_NAME, px4::device_bus_to_wq(get_device_id()), bus_option, bus),
 	_px4_mag(get_device_id(), ORB_PRIO_MAX, rotation),

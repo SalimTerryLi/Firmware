@@ -42,6 +42,7 @@
 #include "bmp388.h"
 
 BMP388::BMP388(I2CSPIBusOption bus_option, int bus, IBMP388 *interface) :
+	ScheduledWorkItem(MODULE_NAME, px4::device_bus_to_wq(interface->get_device_id())),
 	I2CSPIDriver(MODULE_NAME, px4::device_bus_to_wq(interface->get_device_id()), bus_option, bus,
 		     interface->get_device_address()),
 	_px4_baro(interface->get_device_id()),

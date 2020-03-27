@@ -42,6 +42,7 @@
 
 
 INA226::INA226(I2CSPIBusOption bus_option, const int bus, int bus_frequency, int address, int battery_index) :
+	ScheduledWorkItem(MODULE_NAME, px4::device_bus_to_wq(get_device_id())),
 	I2C("INA226", nullptr, bus, address, bus_frequency),
 	ModuleParams(nullptr),
 	I2CSPIDriver(MODULE_NAME, px4::device_bus_to_wq(get_device_id()), bus_option, bus, address),

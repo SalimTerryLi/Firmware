@@ -34,6 +34,7 @@
 #include "LPS25H.hpp"
 
 LPS25H::LPS25H(I2CSPIBusOption bus_option, int bus, device::Device *interface) :
+	ScheduledWorkItem(MODULE_NAME, px4::device_bus_to_wq(interface->get_device_id())),
 	I2CSPIDriver(MODULE_NAME, px4::device_bus_to_wq(interface->get_device_id()), bus_option, bus),
 	_px4_barometer(interface->get_device_id()),
 	_interface(interface),

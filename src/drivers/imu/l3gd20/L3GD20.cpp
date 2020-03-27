@@ -37,6 +37,7 @@ constexpr uint8_t L3GD20::_checked_registers[];
 
 L3GD20::L3GD20(I2CSPIBusOption bus_option, int bus, uint32_t device, enum Rotation rotation, int bus_frequency,
 	       spi_mode_e spi_mode) :
+	ScheduledWorkItem(MODULE_NAME, px4::device_bus_to_wq(get_device_id())),
 	SPI("L3GD20", nullptr, bus, device, spi_mode, bus_frequency),
 	I2CSPIDriver(MODULE_NAME, px4::device_bus_to_wq(get_device_id()), bus_option, bus),
 	_px4_gyro(get_device_id(), ORB_PRIO_DEFAULT, rotation),

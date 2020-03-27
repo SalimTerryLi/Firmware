@@ -51,6 +51,7 @@ const uint8_t BMI160::_checked_registers[BMI160_NUM_CHECKED_REGISTERS] = {    BM
 
 BMI160::BMI160(I2CSPIBusOption bus_option, int bus, int32_t device, enum Rotation rotation, int bus_frequency,
 	       spi_mode_e spi_mode) :
+	ScheduledWorkItem(MODULE_NAME, px4::device_bus_to_wq(get_device_id())),
 	SPI("BMI160", nullptr, bus, device, spi_mode, bus_frequency),
 	I2CSPIDriver(MODULE_NAME, px4::device_bus_to_wq(get_device_id()), bus_option, bus),
 	_px4_accel(get_device_id(), (external() ? ORB_PRIO_MAX - 1 : ORB_PRIO_HIGH - 1), rotation),

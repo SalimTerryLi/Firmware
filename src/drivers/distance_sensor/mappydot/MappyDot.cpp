@@ -222,6 +222,7 @@ private:
 
 
 MappyDot::MappyDot(I2CSPIBusOption bus_option, const int bus, int bus_frequency) :
+	ScheduledWorkItem(MODULE_NAME, px4::device_bus_to_wq(get_device_id())),
 	I2C("MappyDot", MAPPYDOT_DEVICE_PATH, bus, MAPPYDOT_BASE_ADDR, bus_frequency),
 	ModuleParams(nullptr),
 	I2CSPIDriver(MODULE_NAME, px4::device_bus_to_wq(get_device_id()), bus_option, bus)

@@ -43,6 +43,7 @@
 #include "lis3mdl.h"
 
 LIS3MDL::LIS3MDL(device::Device *interface, enum Rotation rotation, I2CSPIBusOption bus_option, int bus) :
+	ScheduledWorkItem(MODULE_NAME, px4::device_bus_to_wq(interface->get_device_id())),
 	CDev("LIS3MDL", nullptr),
 	I2CSPIDriver(MODULE_NAME, px4::device_bus_to_wq(interface->get_device_id()), bus_option, bus),
 	_interface(interface),

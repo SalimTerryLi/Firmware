@@ -72,6 +72,7 @@ const uint16_t MPU9250::_mpu9250_checked_registers[MPU9250_NUM_CHECKED_REGISTERS
 
 MPU9250::MPU9250(device::Device *interface, device::Device *mag_interface, enum Rotation rotation,
 		 I2CSPIBusOption bus_option, int bus) :
+	ScheduledWorkItem(MODULE_NAME, px4::device_bus_to_wq(interface->get_device_id())),
 	I2CSPIDriver(MODULE_NAME, px4::device_bus_to_wq(interface->get_device_id()), bus_option, bus),
 	_interface(interface),
 	_px4_accel(_interface->get_device_id(), (_interface->external() ? ORB_PRIO_MAX : ORB_PRIO_HIGH), rotation),

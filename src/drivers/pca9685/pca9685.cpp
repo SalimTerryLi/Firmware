@@ -179,6 +179,7 @@ private:
 };
 
 PCA9685::PCA9685(I2CSPIBusOption bus_option, int bus, int bus_frequency) :
+	ScheduledWorkItem(MODULE_NAME, px4::device_bus_to_wq(get_device_id())),
 	I2C("pca9685", PCA9685_DEVICE_PATH, bus, ADDR, bus_frequency),
 	I2CSPIDriver(MODULE_NAME, px4::device_bus_to_wq(get_device_id()), bus_option, bus),
 	_mode(IOX_MODE_ON),

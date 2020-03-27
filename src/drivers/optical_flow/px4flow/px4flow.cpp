@@ -147,6 +147,7 @@ extern "C" __EXPORT int px4flow_main(int argc, char *argv[]);
 
 PX4FLOW::PX4FLOW(I2CSPIBusOption bus_option, int bus, int address, uint8_t sonar_rotation, int bus_frequency,
 		 int conversion_interval, enum Rotation rotation) :
+	ScheduledWorkItem(MODULE_NAME, px4::device_bus_to_wq(get_device_id())),
 	I2C("PX4FLOW", PX4FLOW0_DEVICE_PATH, bus, address, bus_frequency),
 	I2CSPIDriver(MODULE_NAME, px4::device_bus_to_wq(get_device_id()), bus_option, bus, address),
 	_sonar_rotation(sonar_rotation),

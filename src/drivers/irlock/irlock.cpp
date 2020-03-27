@@ -139,6 +139,7 @@ private:
 extern "C" __EXPORT int irlock_main(int argc, char *argv[]);
 
 IRLOCK::IRLOCK(I2CSPIBusOption bus_option, const int bus, int bus_frequency, const int address) :
+	ScheduledWorkItem(MODULE_NAME, px4::device_bus_to_wq(get_device_id())),
 	I2C("irlock", IRLOCK0_DEVICE_PATH, bus, address, bus_frequency),
 	I2CSPIDriver(MODULE_NAME, px4::device_bus_to_wq(get_device_id()), bus_option, bus, address),
 	_reports(nullptr),

@@ -35,6 +35,7 @@
 
 QMC5883::QMC5883(device::Device *interface, enum Rotation rotation, I2CSPIBusOption bus_option, int bus,
 		 int i2c_address) :
+	ScheduledWorkItem(MODULE_NAME, px4::device_bus_to_wq(interface->get_device_id())),
 	CDev("QMC5883", nullptr),
 	I2CSPIDriver(MODULE_NAME, px4::device_bus_to_wq(interface->get_device_id()), bus_option, bus, i2c_address),
 	_interface(interface),

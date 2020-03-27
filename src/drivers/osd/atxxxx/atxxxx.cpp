@@ -47,6 +47,7 @@ using namespace time_literals;
 static constexpr uint32_t OSD_UPDATE_RATE{50_ms};	// 20 Hz
 
 OSDatxxxx::OSDatxxxx(I2CSPIBusOption bus_option, int bus, int devid, int bus_frequency, spi_mode_e spi_mode) :
+	ScheduledWorkItem(MODULE_NAME, px4::device_bus_to_wq(get_device_id())),
 	SPI("OSD", nullptr, bus, devid, spi_mode, bus_frequency),
 	ModuleParams(nullptr),
 	I2CSPIDriver(MODULE_NAME, px4::device_bus_to_wq(get_device_id()), bus_option, bus)

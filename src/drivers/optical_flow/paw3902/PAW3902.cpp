@@ -35,6 +35,7 @@
 
 PAW3902::PAW3902(I2CSPIBusOption bus_option, int bus, int devid, enum Rotation yaw_rotation, int bus_frequency,
 		 spi_mode_e spi_mode) :
+	ScheduledWorkItem(MODULE_NAME, px4::device_bus_to_wq(get_device_id())),
 	SPI("PAW3902", nullptr, bus, devid, spi_mode, bus_frequency),
 	I2CSPIDriver(MODULE_NAME, px4::device_bus_to_wq(get_device_id()), bus_option, bus),
 	_sample_perf(perf_alloc(PC_ELAPSED, "paw3902: read")),

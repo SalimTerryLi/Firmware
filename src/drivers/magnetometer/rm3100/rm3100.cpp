@@ -42,6 +42,7 @@
 #include "rm3100.h"
 
 RM3100::RM3100(device::Device *interface, enum Rotation rotation, I2CSPIBusOption bus_option, int bus) :
+	ScheduledWorkItem(MODULE_NAME, px4::device_bus_to_wq(interface->get_device_id())),
 	CDev("RM3100", nullptr),
 	I2CSPIDriver(MODULE_NAME, px4::device_bus_to_wq(interface->get_device_id()), bus_option, bus),
 	_interface(interface),

@@ -63,6 +63,7 @@ static constexpr uint8_t LSM303AGR_WHO_AM_I_M = 0x40;
 
 LSM303AGR::LSM303AGR(I2CSPIBusOption bus_option, int bus, int device, enum Rotation rotation, int bus_frequency,
 		     spi_mode_e spi_mode) :
+	ScheduledWorkItem(MODULE_NAME, px4::device_bus_to_wq(get_device_id())),
 	SPI("LSM303AGR", nullptr, bus, device, spi_mode, bus_frequency),
 	I2CSPIDriver(MODULE_NAME, px4::device_bus_to_wq(get_device_id()), bus_option, bus),
 	_mag_sample_perf(perf_alloc(PC_ELAPSED, "LSM303AGR_mag_read")),

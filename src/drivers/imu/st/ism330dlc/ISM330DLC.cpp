@@ -41,6 +41,7 @@ static constexpr uint32_t FIFO_INTERVAL{1000}; // 1000 us / 1000 Hz interval
 
 ISM330DLC::ISM330DLC(I2CSPIBusOption bus_option, int bus, uint32_t device, enum Rotation rotation, int bus_frequency,
 		     spi_mode_e spi_mode, spi_drdy_gpio_t drdy_gpio) :
+	ScheduledWorkItem(MODULE_NAME, px4::device_bus_to_wq(get_device_id())),
 	SPI(MODULE_NAME, nullptr, bus, device, spi_mode, bus_frequency),
 	I2CSPIDriver(MODULE_NAME, px4::device_bus_to_wq(get_device_id()), bus_option, bus),
 	_drdy_gpio(drdy_gpio),
