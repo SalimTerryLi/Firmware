@@ -44,8 +44,6 @@
 
 #define BOARD_BATTERY1_V_DIV   (11.0f)
 
-#define BOARD_HAS_NO_BOOTLOADER
-
 #define BOARD_MAX_LEDS 4 // Number external of LED's this board has
 
 
@@ -91,4 +89,3 @@ void rc_cleaning(void);
 #define rc_filter_butterworth_lowpass	rc_butterworth_lowpass
 
 #endif
-

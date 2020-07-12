@@ -36,14 +36,13 @@ px4_add_board(
 		imu/l3gd20
 		imu/lsm303d
 		imu/invensense/icm20608g
+		imu/invensense/icm20948
 		imu/invensense/mpu6000
 		imu/invensense/mpu9250
-		imu/icm20948
 		irlock
 		lights/blinkm
 		lights/rgbled
 		lights/rgbled_ncp5623c
-		#lights/rgbled_pwm
 		magnetometer # all available magnetometer drivers
 		mkblctrl
 		#optical_flow # all available optical flow drivers
@@ -95,10 +94,10 @@ px4_add_board(
 		vtol_att_control
 	SYSTEMCMDS
 		bl_update
-		config
 		#dmesg
 		dumpfile
 		esc_calib
+		gpio
 		hardfault_log
 		i2cdetect
 		led_control
@@ -113,7 +112,6 @@ px4_add_board(
 		reboot
 		reflect
 		sd_bench
-		shutdown
 		tests # tests and test runner
 		top
 		topic_listener

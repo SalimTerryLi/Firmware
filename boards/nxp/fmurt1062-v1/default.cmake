@@ -29,7 +29,7 @@ px4_add_board(
 		#imu/adis16477
 		#imu/adis16497
 		#imu # all available imu drivers
-		imu/bmi055
+		imu/bosch/bmi055
 		imu/mpu6000
 		irlock
 		lights/blinkm
@@ -74,7 +74,6 @@ px4_add_board(
 		vmount
 	SYSTEMCMDS
 #		bl_update
-		config
 		dmesg
 		dumpfile
 		esc_calib
@@ -92,7 +91,6 @@ px4_add_board(
 		reboot
 		reflect
 		sd_bench
-		shutdown
 		top
 		topic_listener
 		tune_control
