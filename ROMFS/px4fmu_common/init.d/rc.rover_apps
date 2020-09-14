@@ -16,7 +16,8 @@ ekf2 start
 #
 # Start attitude controllers.
 #
-rover_pos_control start
+rover_att_control start
+#rover_pos_control start
 
 
 #

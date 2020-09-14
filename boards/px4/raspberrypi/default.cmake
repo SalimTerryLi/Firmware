@@ -55,6 +55,7 @@ px4_add_board(
 		#micrortps_bridge
 		navigator
 		rc_update
+		rover_att_control
 		rover_pos_control
 		sensors
 		temperature_compensation

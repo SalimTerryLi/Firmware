@@ -48,6 +48,7 @@ px4_add_board(
 		navigator
 		rc_update
 		replay
+		rover_att_control
 		rover_pos_control
 		sensors
 		#sih
