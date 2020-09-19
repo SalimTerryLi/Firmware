@@ -144,7 +144,7 @@ private:
 		(ParamFloat<px4::params::TRIM_YAW>) _param_trim_yaw
 	)
 
-	ECL_YawController		_yaw_ctrl;
+	ECL_YawController_Rover		_yaw_ctrl;
 
 	/**
 	 * Update our local parameter cache.

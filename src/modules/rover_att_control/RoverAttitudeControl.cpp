@@ -33,8 +33,6 @@
 
 #include "RoverAttitudeControl.hpp"
 
-#include <vtol_att_control/vtol_type.h>
-
 using namespace time_literals;
 using math::constrain;
 using math::gradual;
@@ -49,7 +47,6 @@ RoverAttitudeControl::RoverAttitudeControl() :
 {
 	/* fetch initial parameter values */
 	parameters_update();
-
 	// set initial maximum body rate setpoints
 	_yaw_ctrl.set_max_rate(radians(_param_rov_acro_yaw_max.get()));
 }
@@ -66,6 +63,8 @@ RoverAttitudeControl::init()
 		PX4_ERR("vehicle attitude callback registration failed!");
 		return false;
 	}
+
+	//_att_sub.set_interval_ms(20);
 
 	return true;
 }
@@ -154,6 +153,7 @@ RoverAttitudeControl::vehicle_rates_setpoint_poll()
 void RoverAttitudeControl::Run()
 {
 	if (should_exit()) {
+		PX4_WARN("RoverAttitudeControl exit");
 		_att_sub.unregisterCallback();
 		exit_and_cleanup();
 		return;
@@ -226,8 +226,7 @@ void RoverAttitudeControl::Run()
 
 			/* reset body angular rate limits on mode change */
 			if ((_vcontrol_mode.flag_control_attitude_enabled != _flag_control_attitude_enabled_last) || params_updated) {
-				if (_vcontrol_mode.flag_control_attitude_enabled
-				    || _vehicle_status.vehicle_type == vehicle_status_s::VEHICLE_TYPE_ROTARY_WING) {
+				if (_vcontrol_mode.flag_control_attitude_enabled) {
 					_yaw_ctrl.set_max_rate(radians(_param_rov_y_rmax.get()));
 
 				} else {
@@ -258,13 +257,7 @@ void RoverAttitudeControl::Run()
 
 					yaw_u = _yaw_ctrl.control_euler_rate(dt, control_input);
 
-
 					_actuators.control[actuator_controls_s::INDEX_YAW] = (PX4_ISFINITE(yaw_u)) ? yaw_u + trim_yaw : trim_yaw;
-
-					/* add in manual rudder control in manual modes */
-					if (_vcontrol_mode.flag_control_manual_enabled) {
-						_actuators.control[actuator_controls_s::INDEX_YAW] += _manual_control_setpoint.r;
-					}
 
 					if (!PX4_ISFINITE(yaw_u)) {
 						_yaw_ctrl.reset_integrator();
@@ -318,7 +311,6 @@ void RoverAttitudeControl::Run()
 			rate_ctrl_status.timestamp = hrt_absolute_time();
 
 			rate_ctrl_status.yawspeed_integ = _yaw_ctrl.get_integrator();
-
 
 			_rate_ctrl_status_pub.publish(rate_ctrl_status);
 		}

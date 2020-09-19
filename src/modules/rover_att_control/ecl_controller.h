@@ -73,11 +73,11 @@ struct ECL_ControlData {
 	bool lock_integrator;
 };
 
-class ECL_Controller
+class ECL_Controller_Rover
 {
 public:
-	ECL_Controller();
-	virtual ~ECL_Controller() = default;
+	ECL_Controller_Rover();
+	virtual ~ECL_Controller_Rover() = default;
 
 	virtual float control_attitude(const float dt, const ECL_ControlData &ctl_data) = 0;
 	virtual float control_euler_rate(const float dt, const ECL_ControlData &ctl_data) = 0;

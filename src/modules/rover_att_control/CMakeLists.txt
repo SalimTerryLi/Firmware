@@ -35,7 +35,6 @@ px4_add_module(
 	MAIN rover_att_control
 	SRCS
 		RoverAttitudeControl.cpp
-		RoverAttitudeControl.hpp
 
 		ecl_controller.cpp
 		ecl_yaw_controller.cpp

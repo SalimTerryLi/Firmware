@@ -46,17 +46,17 @@
  *   Jonathan Challinger, 2012.
  */
 
-#ifndef ECL_YAW_CONTROLLER_H
-#define ECL_YAW_CONTROLLER_H
+#ifndef ECL_YAW_CONTROLLER_ROV_H
+#define ECL_YAW_CONTROLLER_ROV_H
 
 #include "ecl_controller.h"
 
-class ECL_YawController :
-	public ECL_Controller
+class ECL_YawController_Rover :
+	public ECL_Controller_Rover
 {
 public:
-	ECL_YawController() = default;
-	~ECL_YawController() = default;
+	ECL_YawController_Rover() = default;
+	~ECL_YawController_Rover() = default;
 
 	float control_attitude(const float dt, const ECL_ControlData &ctl_data) override;
 	float control_euler_rate(const float dt, const ECL_ControlData &ctl_data) override;

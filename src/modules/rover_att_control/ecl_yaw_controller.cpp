@@ -43,7 +43,7 @@
 #include <lib/ecl/geo/geo.h>
 #include <mathlib/mathlib.h>
 
-float ECL_YawController::control_attitude(const float dt, const ECL_ControlData &ctl_data)
+float ECL_YawController_Rover::control_attitude(const float dt, const ECL_ControlData &ctl_data)
 {
 	/* Do not calculate control signal with bad inputs */
 	if (!(PX4_ISFINITE(ctl_data.roll) &&
@@ -54,47 +54,17 @@ float ECL_YawController::control_attitude(const float dt, const ECL_ControlData 
 		return _rate_setpoint;
 	}
 
-	float constrained_roll;
-	bool inverted = false;
-
-	/* roll is used as feedforward term and inverted flight needs to be considered */
-	if (fabsf(ctl_data.roll) < math::radians(90.0f)) {
-		/* not inverted, but numerically still potentially close to infinity */
-		constrained_roll = math::constrain(ctl_data.roll, math::radians(-80.0f), math::radians(80.0f));
-
-	} else {
-		inverted = true;
-
-		// inverted flight, constrain on the two extremes of -pi..+pi to avoid infinity
-		//note: the ranges are extended by 10 deg here to avoid numeric resolution effects
-		if (ctl_data.roll > 0.0f) {
-			/* right hemisphere */
-			constrained_roll = math::constrain(ctl_data.roll, math::radians(100.0f), math::radians(180.0f));
-
-		} else {
-			/* left hemisphere */
-			constrained_roll = math::constrain(ctl_data.roll, math::radians(-180.0f), math::radians(-100.0f));
-		}
-	}
-
-	constrained_roll = math::constrain(constrained_roll, -fabsf(ctl_data.roll_setpoint), fabsf(ctl_data.roll_setpoint));
-
-
-	if (!inverted) {
-		/* Calculate desired yaw rate from coordinated turn constraint / (no side forces) */
-		_rate_setpoint = tanf(constrained_roll) * cosf(ctl_data.pitch) * CONSTANTS_ONE_G / (ctl_data.airspeed <
-				 ctl_data.airspeed_min ? ctl_data.airspeed_min : ctl_data.airspeed);
-	}
+	_rate_setpoint = (ctl_data.yaw_setpoint - ctl_data.yaw) * dt * 100;
 
 	if (!PX4_ISFINITE(_rate_setpoint)) {
-		PX4_WARN("yaw rate sepoint not finite");
+		PX4_WARN("yaw rate setpoint not finite");
 		_rate_setpoint = 0.0f;
 	}
 
 	return _rate_setpoint;
 }
 
-float ECL_YawController::control_bodyrate(const float dt, const ECL_ControlData &ctl_data)
+float ECL_YawController_Rover::control_bodyrate(const float dt, const ECL_ControlData &ctl_data)
 {
 	/* Do not calculate control signal with bad inputs */
 	if (!(PX4_ISFINITE(ctl_data.roll) &&
@@ -142,7 +112,7 @@ float ECL_YawController::control_bodyrate(const float dt, const ECL_ControlData 
 	return math::constrain(_last_output, -1.0f, 1.0f);
 }
 
-float ECL_YawController::control_euler_rate(const float dt, const ECL_ControlData &ctl_data)
+float ECL_YawController_Rover::control_euler_rate(const float dt, const ECL_ControlData &ctl_data)
 {
 	/* Transform setpoint to body angular rates (jacobian) */
 	_bodyrate_setpoint = -sinf(ctl_data.roll) * ctl_data.pitch_rate_setpoint +

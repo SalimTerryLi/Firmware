@@ -51,7 +51,7 @@
 #include <stdio.h>
 #include <mathlib/mathlib.h>
 
-ECL_Controller::ECL_Controller() :
+ECL_Controller_Rover::ECL_Controller_Rover() :
 	_last_run(0),
 	_tc(0.1f),
 	_k_p(0.0f),
@@ -67,69 +67,69 @@ ECL_Controller::ECL_Controller() :
 {
 }
 
-void ECL_Controller::reset_integrator()
+void ECL_Controller_Rover::reset_integrator()
 {
 	_integrator = 0.0f;
 }
 
-void ECL_Controller::set_time_constant(float time_constant)
+void ECL_Controller_Rover::set_time_constant(float time_constant)
 {
 	if (time_constant > 0.1f && time_constant < 3.0f) {
 		_tc = time_constant;
 	}
 }
 
-void ECL_Controller::set_k_p(float k_p)
+void ECL_Controller_Rover::set_k_p(float k_p)
 {
 	_k_p = k_p;
 }
 
-void ECL_Controller::set_k_i(float k_i)
+void ECL_Controller_Rover::set_k_i(float k_i)
 {
 	_k_i = k_i;
 }
 
-void ECL_Controller::set_k_ff(float k_ff)
+void ECL_Controller_Rover::set_k_ff(float k_ff)
 {
 	_k_ff = k_ff;
 }
 
-void ECL_Controller::set_integrator_max(float max)
+void ECL_Controller_Rover::set_integrator_max(float max)
 {
 	_integrator_max = max;
 }
 
-void ECL_Controller::set_max_rate(float max_rate)
+void ECL_Controller_Rover::set_max_rate(float max_rate)
 {
 	_max_rate = max_rate;
 }
 
-void ECL_Controller::set_bodyrate_setpoint(float rate)
+void ECL_Controller_Rover::set_bodyrate_setpoint(float rate)
 {
 	_bodyrate_setpoint = math::constrain(rate, -_max_rate, _max_rate);
 }
 
-float ECL_Controller::get_rate_error()
+float ECL_Controller_Rover::get_rate_error()
 {
 	return _rate_error;
 }
 
-float ECL_Controller::get_desired_rate()
+float ECL_Controller_Rover::get_desired_rate()
 {
 	return _rate_setpoint;
 }
 
-float ECL_Controller::get_desired_bodyrate()
+float ECL_Controller_Rover::get_desired_bodyrate()
 {
 	return _bodyrate_setpoint;
 }
 
-float ECL_Controller::get_integrator()
+float ECL_Controller_Rover::get_integrator()
 {
 	return _integrator;
 }
 
-float ECL_Controller::constrain_airspeed(float airspeed, float minspeed, float maxspeed)
+float ECL_Controller_Rover::constrain_airspeed(float airspeed, float minspeed, float maxspeed)
 {
 	float airspeed_result = airspeed;
 
