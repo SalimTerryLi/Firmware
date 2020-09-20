@@ -93,11 +93,12 @@ RoverAttitudeControl::vehicle_manual_poll()
 {
 	if (_manual_control_setpoint_sub.update(&_manual_control_setpoint)) {
 		if (_vcontrol_mode.flag_control_manual_enabled) {
-			if (_vcontrol_mode.flag_control_attitude_enabled) {
+			/*if (_vcontrol_mode.flag_control_attitude_enabled) {
 				// STABILIZED mode generate the attitude setpoint from manual user inputs
 				_att_sp.roll_body = 0;
 				_att_sp.pitch_body = 0;
-				_att_sp.yaw_body = _manual_control_setpoint.r;
+				_att_sp.yaw_body = 0;
+				_att_sp.yaw_sp_move_rate = _manual_control_setpoint.r;
 				_att_sp.thrust_body[0] = _manual_control_setpoint.z;
 
 				Quatf q(Eulerf(_att_sp.roll_body, _att_sp.pitch_body, _att_sp.yaw_body));
@@ -107,7 +108,7 @@ RoverAttitudeControl::vehicle_manual_poll()
 
 				_attitude_sp_pub.publish(_att_sp);
 
-			} else if (_vcontrol_mode.flag_control_rates_enabled) {
+			} else */if (_vcontrol_mode.flag_control_rates_enabled) {
 
 				// RATE mode we need to generate the rate setpoint from manual user inputs
 				_rates_sp.timestamp = hrt_absolute_time();
@@ -179,7 +180,7 @@ void RoverAttitudeControl::Run()
 			parameters_update();
 		}
 
-		const float dt = math::constrain((att.timestamp - _last_run) * 1e-6f, 0.002f, 0.04f);
+		const float dt = math::constrain((float)(att.timestamp - _last_run) * 1e-6F, 0.002F, 0.04F);
 		_last_run = att.timestamp;
 
 		/* get current rotation matrix and euler angles from control state quaternions */
@@ -187,27 +188,26 @@ void RoverAttitudeControl::Run()
 
 		vehicle_angular_velocity_s angular_velocity{};
 		_vehicle_rates_sub.copy(&angular_velocity);
-		float yawspeed = angular_velocity.xyz[2];
+		float yawspeed = angular_velocity.xyz[2];	// rad/s
 
 		const matrix::Eulerf euler_angles(R);
 
-		vehicle_manual_poll();
-		vehicle_attitude_setpoint_poll();	// must be updated after vehicle_manual_poll(), to get latest sp
+		vehicle_control_mode_poll();	// poll control mode at first
+		vehicle_manual_poll();	// deal with different kind of control setpoints based on modes
 
 		// vehicle status update must be before the vehicle_control_mode_poll(), otherwise rate sp are not published during whole transition
 		_vehicle_status_sub.update(&_vehicle_status);
-		vehicle_control_mode_poll();
-
-		_local_pos_sub.update(&_local_pos);
 
 		/* lock integrator until control is started or for long intervals (> 20 ms) */
 		bool lock_integrator = !_vcontrol_mode.flag_control_rates_enabled
-				       || (_vehicle_status.vehicle_type == vehicle_status_s::VEHICLE_TYPE_ROVER)
 				       || (dt > 0.02f);
 
-		/* decide if in stabilized or full manual control */
-		if (_vcontrol_mode.flag_control_rates_enabled) {
+		if (math::abs_t(_manual_control_setpoint.z) < 0.01F) {	// low throttle, reset controller
+			_yaw_ctrl.reset_integrator();
+			lock_integrator = true;
+		}
 
+		if (_vcontrol_mode.flag_control_rates_enabled) {
 			/* reset integrals where needed */
 			if (_att_sp.yaw_reset_integral) {
 				_yaw_ctrl.reset_integrator();
@@ -219,9 +219,8 @@ void RoverAttitudeControl::Run()
 			control_input.pitch = euler_angles.theta();
 			control_input.yaw = euler_angles.psi();
 			control_input.body_z_rate = yawspeed;
-			control_input.roll_setpoint = _att_sp.roll_body;
-			control_input.pitch_setpoint = _att_sp.pitch_body;
-			control_input.yaw_setpoint = _att_sp.yaw_body;
+			control_input.roll_setpoint = 0;
+			control_input.pitch_setpoint = 0;
 			control_input.lock_integrator = lock_integrator;
 
 			/* reset body angular rate limits on mode change */
@@ -240,18 +239,20 @@ void RoverAttitudeControl::Run()
 			float trim_yaw = _param_trim_yaw.get();
 
 			/* Run attitude controllers */
-			if (_vcontrol_mode.flag_control_attitude_enabled) {
-				if (PX4_ISFINITE(_att_sp.roll_body) && PX4_ISFINITE(_att_sp.pitch_body)) {
+			/*if (_vcontrol_mode.flag_control_attitude_enabled) {
+				vehicle_attitude_setpoint_poll();	// poll attitude setpoint
 
+				if (PX4_ISFINITE(_att_sp.yaw_sp_move_rate)) {
+
+					control_input.yaw_setpoint = _att_sp.yaw_body;
 					_yaw_ctrl.control_attitude(dt, control_input);
 
-
-					/* Update input data for rate controllers */
+					//Update input data for rate controllers
 					control_input.roll_rate_setpoint = 0;//_roll_ctrl.get_desired_rate();
 					control_input.pitch_rate_setpoint = 0;//_pitch_ctrl.get_desired_rate();
 					control_input.yaw_rate_setpoint = _yaw_ctrl.get_desired_rate();
 
-					/* Run attitude RATE controllers which need the desired attitudes from above, add trim */
+					// Run attitude RATE controllers which need the desired attitudes from above, add trim
 
 					float yaw_u = 0.0f;
 
@@ -263,11 +264,11 @@ void RoverAttitudeControl::Run()
 						_yaw_ctrl.reset_integrator();
 					}
 
-					/* throttle passed through if it is finite and if no engine failure was detected */
+					// throttle passed through if it is finite and if no engine failure was detected
 					_actuators.control[actuator_controls_s::INDEX_THROTTLE] = (PX4_ISFINITE(_att_sp.thrust_body[0])
 							&& !_vehicle_status.engine_failure) ? _att_sp.thrust_body[0] : 0.0f;
 
-					/* scale effort by battery status */
+					// scale effort by battery status
 					if (_param_rov_bat_scale_en.get() &&
 					    _actuators.control[actuator_controls_s::INDEX_THROTTLE] > 0.1f) {
 
@@ -285,20 +286,19 @@ void RoverAttitudeControl::Run()
 					}
 				}
 
-				/*
-				 * Lazily publish the rate setpoint (for analysis, the actuators are published below)
-				 * only once available
-				 */
+				 // Lazily publish the rate setpoint (for analysis, the actuators are published below)
+				 // only once available
 				_rates_sp.yaw = _yaw_ctrl.get_desired_bodyrate();
 
 				_rates_sp.timestamp = hrt_absolute_time();
 
 				_rate_sp_pub.publish(_rates_sp);
 
-			} else {
+			} else */{
 				vehicle_rates_setpoint_poll();
 
 				_yaw_ctrl.set_bodyrate_setpoint(_rates_sp.yaw);
+				control_input.scaler = math::radians(_param_rov_y_rmax.get());
 
 				float yaw_u = _yaw_ctrl.control_bodyrate(dt, control_input);
 				_actuators.control[actuator_controls_s::INDEX_YAW] = (PX4_ISFINITE(yaw_u)) ? yaw_u + trim_yaw : trim_yaw;

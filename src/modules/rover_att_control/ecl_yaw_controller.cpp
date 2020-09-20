@@ -46,15 +46,16 @@
 float ECL_YawController_Rover::control_attitude(const float dt, const ECL_ControlData &ctl_data)
 {
 	/* Do not calculate control signal with bad inputs */
-	if (!(PX4_ISFINITE(ctl_data.roll) &&
-	      PX4_ISFINITE(ctl_data.pitch) &&
-	      PX4_ISFINITE(ctl_data.roll_rate_setpoint) &&
-	      PX4_ISFINITE(ctl_data.pitch_rate_setpoint))) {
+	if (!(PX4_ISFINITE(ctl_data.yaw) &&
+	      PX4_ISFINITE(ctl_data.yaw_setpoint))) {
 
 		return _rate_setpoint;
 	}
 
 	_rate_setpoint = (ctl_data.yaw_setpoint - ctl_data.yaw) * dt * 100;
+
+	PX4_WARN("ratesp %.4f yaw %.4f yawsp %.4f", (double)_rate_setpoint, (double)ctl_data.yaw,
+		 (double)ctl_data.yaw_setpoint);
 
 	if (!PX4_ISFINITE(_rate_setpoint)) {
 		PX4_WARN("yaw rate setpoint not finite");
@@ -67,25 +68,19 @@ float ECL_YawController_Rover::control_attitude(const float dt, const ECL_Contro
 float ECL_YawController_Rover::control_bodyrate(const float dt, const ECL_ControlData &ctl_data)
 {
 	/* Do not calculate control signal with bad inputs */
-	if (!(PX4_ISFINITE(ctl_data.roll) &&
-	      PX4_ISFINITE(ctl_data.pitch) &&
-	      PX4_ISFINITE(ctl_data.body_y_rate) &&
-	      PX4_ISFINITE(ctl_data.body_z_rate) &&
-	      PX4_ISFINITE(ctl_data.pitch_rate_setpoint) &&
-	      PX4_ISFINITE(ctl_data.airspeed_min) &&
-	      PX4_ISFINITE(ctl_data.airspeed_max) &&
-	      PX4_ISFINITE(ctl_data.scaler))) {
+	if (!(PX4_ISFINITE(ctl_data.body_z_rate) &&
+	      PX4_ISFINITE(ctl_data.yaw_rate_setpoint))) {
 
 		return math::constrain(_last_output, -1.0f, 1.0f);
 	}
 
 	/* Calculate body angular rate error */
 	_rate_error = _bodyrate_setpoint - ctl_data.body_z_rate;
+	_rate_error /= ctl_data.scaler;
 
 	if (!ctl_data.lock_integrator && _k_i > 0.0f) {
 
-		/* Integral term scales with 1/IAS^2 */
-		float id = _rate_error * dt * ctl_data.scaler * ctl_data.scaler;
+		float id = _rate_error * dt;
 
 		/*
 		 * anti-windup: do not allow integrator to increase if actuator is at limit
@@ -104,11 +99,10 @@ float ECL_YawController_Rover::control_bodyrate(const float dt, const ECL_Contro
 	}
 
 	/* Apply PI rate controller and store non-limited output */
-	/* FF terms scales with 1/TAS and P,I with 1/IAS^2 */
-	_last_output = _bodyrate_setpoint * _k_ff * ctl_data.scaler +
-		       _rate_error * _k_p * ctl_data.scaler * ctl_data.scaler
+	_last_output = _bodyrate_setpoint * _k_ff + _rate_error * _k_p
 		       + _integrator;
 
+	PX4_WARN("input %.4f output %.4f diff %.4f", (double)_bodyrate_setpoint, (double)_last_output, (double)_rate_error);
 	return math::constrain(_last_output, -1.0f, 1.0f);
 }
 
