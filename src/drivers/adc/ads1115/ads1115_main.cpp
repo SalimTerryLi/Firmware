@@ -81,60 +81,57 @@ int ADS1115::Begin()
 
 void ADS1115::exit_and_cleanup()
 {
+	PX4_INFO("stopping");
 	I2CSPIDriverBase::exit_and_cleanup();	// nothing to do
 }
 
 void ADS1115::RunImpl()
 {
-	if (should_exit()) {
-		PX4_INFO("stopping");
-		return;	// stop and return immediately to avoid unexpected schedule from stopping procedure
-	}
-
 	perf_begin(_cycle_perf);
 
 	_adc_report.timestamp = hrt_absolute_time();
 
-	if (isSampleReady()) { // whether ADS1115 is ready to be read or not
-		int16_t buf;
-		ADS1115::ChannelSelection ch = cycleMeasure(&buf);
+	int16_t buf;
+	ADS1115::ChannelSelection ch = cycleMeasure(&buf);
+
+	switch (ch) {
+	case ADS1115::A0:
+		_adc_report.channel_id[0] = 0;
+		_adc_report.raw_data[0] = buf;
 		++_channel_cycle_count;
+		break;
 
-		switch (ch) {
-		case ADS1115::A0:
-			_adc_report.channel_id[0] = 0;
-			_adc_report.raw_data[0] = buf;
-			break;
+	case ADS1115::A1:
+		_adc_report.channel_id[1] = 1;
+		_adc_report.raw_data[1] = buf;
+		++_channel_cycle_count;
+		break;
 
-		case ADS1115::A1:
-			_adc_report.channel_id[1] = 1;
-			_adc_report.raw_data[1] = buf;
-			break;
+	case ADS1115::A2:
+		_adc_report.channel_id[2] = 2;
+		_adc_report.raw_data[2] = buf;
+		++_channel_cycle_count;
+		break;
 
-		case ADS1115::A2:
-			_adc_report.channel_id[2] = 2;
-			_adc_report.raw_data[2] = buf;
-			break;
+	case ADS1115::A3:
+		_adc_report.channel_id[3] = 3;
+		_adc_report.raw_data[3] = buf;
+		++_channel_cycle_count;
+		break;
 
-		case ADS1115::A3:
-			_adc_report.channel_id[3] = 3;
-			_adc_report.raw_data[3] = buf;
-			break;
+	case ADS1115::NOTREADY:
+		PX4_WARN("ADS1115: sample not ready!");
+		break;
 
-		default:
-			PX4_DEBUG("ADS1115: undefined behaviour");
-			setChannel(ADS1115::A0);
-			--_channel_cycle_count;
-			break;
-		}
+	default:
+		PX4_DEBUG("ADS1115: undefined behaviour");
+		setChannel(ADS1115::A0);
+		break;
+	}
 
-		if (_channel_cycle_count == 4) { // ADS1115 has 4 channels
-			_channel_cycle_count = 0;
-			_to_adc_report.publish(_adc_report);
-		}
-
-	} else {
-		PX4_WARN("ADS1115 not ready!");
+	if (_channel_cycle_count == 4) { // ADS1115 has 4 channels
+		_channel_cycle_count = 0;
+		_to_adc_report.publish(_adc_report);
 	}
 
 	perf_end(_cycle_perf);

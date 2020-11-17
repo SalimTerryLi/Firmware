@@ -139,7 +139,7 @@ private:
 
 	// ADS1115 logic part
 	enum ChannelSelection {
-		Invalid = -1, A0 = 0, A1, A2, A3
+		Invalid = -1, A0 = 0, A1, A2, A3, NOTREADY
 	};
 	/* set multiplexer to specific channel */
 	int setChannel(ChannelSelection ch);

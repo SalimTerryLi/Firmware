@@ -136,33 +136,38 @@ ADS1115::ChannelSelection ADS1115::getMeasurement(int16_t *value)
 ADS1115::ChannelSelection ADS1115::cycleMeasure(int16_t *value)
 {
 	uint8_t buf[2] = {0x00};
-	readReg(ADDRESSPOINTER_REG_CONFIG, buf, 1); // Pull config register
-	ChannelSelection channel;
+	ChannelSelection channel = Invalid;
 	uint8_t next_mux_reg = CONFIG_HIGH_MUX_P0NG;
+	readReg(ADDRESSPOINTER_REG_CONFIG, buf, 1); // Pull config register
 
-	switch ((buf[0] & (uint8_t) 0x70) >> 4) {
-	case 0x04:
-		channel = A0;
-		next_mux_reg = CONFIG_HIGH_MUX_P1NG;
-		break;
+	if (buf[0] & (uint8_t) 0x80) {  // sample ready
+		switch ((buf[0] & (uint8_t) 0x70) >> 4) {
+		case 0x04:
+			channel = A0;
+			next_mux_reg = CONFIG_HIGH_MUX_P1NG;
+			break;
 
-	case 0x05:
-		channel = A1;
-		next_mux_reg = CONFIG_HIGH_MUX_P2NG;
-		break;
+		case 0x05:
+			channel = A1;
+			next_mux_reg = CONFIG_HIGH_MUX_P2NG;
+			break;
 
-	case 0x06:
-		channel = A2;
-		next_mux_reg = CONFIG_HIGH_MUX_P3NG;
-		break;
+		case 0x06:
+			channel = A2;
+			next_mux_reg = CONFIG_HIGH_MUX_P3NG;
+			break;
 
-	case 0x07:
-		channel = A3;
-		next_mux_reg = CONFIG_HIGH_MUX_P0NG;
-		break;
+		case 0x07:
+			channel = A3;
+			next_mux_reg = CONFIG_HIGH_MUX_P0NG;
+			break;
 
-	default:
-		return Invalid;
+		default:
+			return Invalid;
+		}
+
+	} else {
+		return NOTREADY;
 	}
 
 	readReg(ADDRESSPOINTER_REG_CONVERSATION, buf, 2);
